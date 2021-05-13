@@ -1,46 +1,49 @@
 using UnityEngine;
 
-public class SingletonMB<T> : MonoBehaviour where T : SingletonMB<T>
+namespace MFramework.Common
 {
-    private static T Instance;
-
-    public static T GetInstance()
+    public class SingletonMB<T> : MonoBehaviour where T : SingletonMB<T>
     {
-        if (Instance == null)
+        private static T Instance;
+
+        public static T GetInstance()
         {
-            Instance = FindObjectOfType<T>();
-            if(Instance == null)
+            if (Instance == null)
             {
-                GameObject go = new GameObject(typeof(T).Name);
-                Instance = go.AddComponent<T>();
-                DontDestroyOnLoad(go);
+                Instance = FindObjectOfType<T>();
+                if (Instance == null)
+                {
+                    GameObject go = new GameObject(typeof(T).Name);
+                    Instance = go.AddComponent<T>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            return Instance;
+        }
+
+        protected virtual void Awake()
+        {
+            if (Instance != null)
+            {
+                if (Instance != this)
+                {
+                    Debug.LogErrorFormat("试图实例化第二个单例类: {0}", GetType().Name);
+                    Destroy(gameObject);
+                    return;
+                }
+            }
+            else
+            {
+                Instance = (T)this;
             }
         }
-        return Instance;
-    }
 
-    protected virtual void Awake()
-    {
-        if (Instance != null)
+        protected virtual void OnDestroy()
         {
-            if (Instance != this)
+            if (Instance == this)
             {
-                Debug.LogErrorFormat("试图实例化第二个单例类: {0}", GetType().Name);
-                Destroy(gameObject);
-                return;
+                Instance = null;
             }
-        }
-        else
-        {
-            Instance = (T)this;
-        }
-    }
-
-    protected virtual void OnDestroy()
-    {
-        if (Instance == this)
-        {
-            Instance = null;
         }
     }
 }

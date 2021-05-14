@@ -8,7 +8,6 @@ public class Test : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		Log.SetLogLevel(Log.Type.None);
 		Log.LogE(AssetService.GetInstance().gameObject.name);
 	}
 	

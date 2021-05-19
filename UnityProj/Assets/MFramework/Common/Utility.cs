@@ -3,12 +3,49 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System;
+using System.Diagnostics;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace MFramework.Common
 {
     public class Utility
     {
         public static readonly DateTime _localOrgTimeUtc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+#if UNITY_EDITOR
+        [Conditional("UNITY_EDITOR")]
+        public static void AddDefineSymbol(BuildTargetGroup buildTargetGroup, params string[] defineSymbols)
+        {
+            SetDefineSymbol(buildTargetGroup, true, defineSymbols);
+        }
+
+        [Conditional("UNITY_EDITOR")]
+        public static void RemoveDefineSymbol(BuildTargetGroup buildTargetGroup, params string[] defineSymbols)
+        {
+            SetDefineSymbol(buildTargetGroup, false, defineSymbols);
+        }
+
+        [Conditional("UNITY_EDITOR")]
+        private static void SetDefineSymbol(BuildTargetGroup buildTargetGroup, bool isAdd, params string[] defineSymbols)
+        {
+            var symbolStr = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
+            HashSet<string> symbol = new HashSet<string>(symbolStr.Split(';'));
+            foreach (var item in defineSymbols)
+            {
+                if (isAdd)
+                {
+                    symbol.Add(item);
+                }
+                else
+                {
+                    symbol.Remove(item);
+                }
+            }
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, string.Join(";", new List<string>(symbol).ToArray()));
+        }
+#endif
 
         public static string GetMD5Hash(byte[] _bytes)
         {
@@ -71,7 +108,7 @@ namespace MFramework.Common
                     path = Path.Combine(path, values[i]);
                 }
 
-                return path;
+                return path.Replace("\\","/");
             }
             return string.Empty;
         }
@@ -154,6 +191,51 @@ namespace MFramework.Common
         }
 
         //----------------------------------------------
+        /// 读取文件
+        /// @filePath
+        //----------------------------------------------
+        public static byte[] ReadFile(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                Log.LogE("Read File " + filePath + " Is Not Exist");
+                return null;
+            }
+
+            byte[] data = null;
+            int tryCount = 0;
+
+            while (true)
+            {
+                try
+                {
+                    data = System.IO.File.ReadAllBytes(filePath);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.LogE("Read File " + filePath + " Error! Exception = " + ex.ToString() + ", TryCount = " + tryCount);
+                    data = null;
+                }
+
+                if (data == null || data.Length <= 0)
+                {
+                    tryCount++;
+
+                    if (tryCount >= 3)
+                    {
+                        Log.LogE("Read File " + filePath + " Fail!, TryCount = " + tryCount);
+
+                        return null;
+                    }
+                }
+                else
+                {
+                    return data;
+                }
+            }
+        }
+
+        //----------------------------------------------
         /// 删除文件
         /// @filePath
         //----------------------------------------------
@@ -217,6 +299,31 @@ namespace MFramework.Common
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 获取系统剪切板内容
+        /// </summary>
+        /// <returns></returns>
+        public static string GetSystemCopyBuffer()
+        {
+            return UniClipboard.GetText();
+        }
+
+        /// <summary>
+        /// 设置系统剪切板内容
+        /// </summary>
+        /// <param name="str"></param>
+        public static void SetSystemCopyBuffer(string str)
+        {
+            UniClipboard.SetText(str);
+        }
+
+        public static string GetFilePathWithoutExtension(string v)
+        {
+            string parentPath = Path.GetDirectoryName(v);
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(v);
+            return CombinePaths(parentPath, fileNameWithoutExtension);
         }
     }
 }

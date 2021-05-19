@@ -276,5 +276,23 @@ namespace MFramework.Common
                 s[lastIndex--] = value;
             }
         }
+
+        public static string GetThisClassRelativePath()
+        {
+#if UNITY_STANDALONE_WIN || UNITY_IPHONE || UNITY_ANDROID || UNITY_EDITOR
+            string filePath = new System.Diagnostics.StackTrace(true).GetFrame(0).GetFileName();
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                int index = filePath.IndexOf("Assets");
+                if (index != -1)
+                {
+                    return filePath.Substring(index);
+                }
+            }
+            return "";
+#elif UNITY_UWP || UNITY_WSA
+            return "";
+#endif
+        }
     }
 }

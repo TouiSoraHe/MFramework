@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using MFramework.Common;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,21 +7,23 @@ namespace MFramework.AssetService
 {
     public class UnityAsset : AssetBase
     {
-        protected override void Init(string resPath, object data)
+
+        protected override void InitVerify(string resPath, object data)
         {
             if (!typeof(UnityEngine.Object).IsAssignableFrom(data.GetType()))
             {
                 throw new System.ArgumentException("data 参数类型错误,type:" + data.GetType().Name);
             }
-            base.Init(resPath, data);
         }
 
-        protected override AssetBase Copy()
+        protected override object CopyData()
         {
-            UnityEngine.Object copyData = UnityEngine.Object.Instantiate(Data as UnityEngine.Object);
-            UnityAsset unityAsset = new UnityAsset();
-            unityAsset.Init(ResPath, copyData);
-            return unityAsset;
+            if (Data == null || (Data as UnityEngine.Object) == null)
+            {
+                Log.LogE("UnityAsset.CopyData:严重错误，拷贝源数据为空,path:{0}",ResPath);
+                return null;
+            }
+            return UnityEngine.Object.Instantiate(Data as UnityEngine.Object);
         }
 
         protected override void OnUnload()
@@ -34,6 +37,7 @@ namespace MFramework.AssetService
 
         protected override void OnRealUnload()
         {
+            Data = null;
         }
     }
 }

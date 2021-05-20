@@ -44,7 +44,7 @@ namespace MFramework.AssetService
             }
             this.assetPath = assetPath;
             Asset = unityAsset;
-            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+            NextTickCompletedInvoke(null);
         }
 
         protected override AssetRequest OnClone()
@@ -85,7 +85,7 @@ namespace MFramework.AssetService
         {
             assetBundleRequest = assetBundle.LoadAssetAsync(assetPath);
             assetBundleRequest.completed += OnCompleted;
-            assetBundleRequest.completed += CompletedInvoke;
+            assetBundleRequest.completed += NextTickCompletedInvoke;
         }
 
         protected void OnCompleted(AsyncOperation obj)
@@ -104,11 +104,6 @@ namespace MFramework.AssetService
             }
         }
 
-        private void CompletedInvoke(object obj)
-        {
-            CompletedInvoke();
-        }
-
         protected override float OnProgress()
         {
             if (mainBundleCreateAssetRequest == null)
@@ -125,9 +120,14 @@ namespace MFramework.AssetService
             }
         }
 
+        private void NextTickCompletedInvoke(object obj)
+        {
+            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+        }
+
         public void OnScheduleHandle(ScheduleType type, uint id)
         {
-            CompletedInvoke(null);
+            CompletedInvoke();
             ScheduleService.ScheduleService.GetInstance().RemoveFrame(id);
         }
     }

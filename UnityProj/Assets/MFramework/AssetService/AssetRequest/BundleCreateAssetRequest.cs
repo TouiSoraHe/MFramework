@@ -31,7 +31,7 @@ namespace MFramework.AssetService
             this.path = path;
             this.assetBundleCreateRequest = assetBundleCreateRequest;
             this.assetBundleCreateRequest.completed += OnCompleted;
-            this.assetBundleCreateRequest.completed += CompletedInvoke;
+            this.assetBundleCreateRequest.completed += NextTickCompletedInvoke;
         }
 
         public BundleCreateAssetRequest(string path,BundleAsset bundleAsset)
@@ -42,7 +42,7 @@ namespace MFramework.AssetService
             }
             this.path = path;
             this.BundleAsset = bundleAsset;
-            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+            NextTickCompletedInvoke(null);
         }
 
         protected override AssetRequest OnClone()
@@ -73,19 +73,19 @@ namespace MFramework.AssetService
             }
         }
 
-        private void CompletedInvoke(object obj)
-        {
-            CompletedInvoke();
-        }
-
         protected override float OnProgress()
         {
             return this.assetBundleCreateRequest.progress;
         }
 
+        private void NextTickCompletedInvoke(object obj)
+        {
+            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+        }
+
         public void OnScheduleHandle(ScheduleType type, uint id)
         {
-            CompletedInvoke(null);
+            CompletedInvoke();
             ScheduleService.ScheduleService.GetInstance().RemoveFrame(id);
         }
     }

@@ -42,6 +42,7 @@ public class Test : MonoBehaviour {
 				assetRequest.Completed += (obj) =>
 				{
 					Add(assetRequest.Asset);
+					assetRequest.Asset.Unload();
 				};
 			}
 			else

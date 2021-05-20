@@ -37,7 +37,7 @@ namespace MFramework.AssetService
         }
 
         public AssetBase(){ }
-        protected virtual void Init(string resPath, object data)
+        private void Init(string resPath, object data)
         {
             this.ResPath = resPath;
             Data = data;
@@ -48,12 +48,12 @@ namespace MFramework.AssetService
             AssetManager.Unload(this);
         }
 
-        private void Unload(bool isReal)
+        private bool Unload(bool isReal)
         {
             if (isUnload)
             {
                 Log.LogE("Asset.Unload:资源已卸载，请勿重复卸载");
-                return;
+                return false;
             }
             isUnload = true;
             if (isReal)
@@ -64,9 +64,20 @@ namespace MFramework.AssetService
             {
                 OnUnload();
             }
+            return true;
         }
 
-        protected abstract AssetBase Copy();
+        private T Copy<T>() where T : AssetBase, new()
+        {
+            object obj = CopyData();
+            T asset = new T();
+            asset.Init(ResPath, obj);
+            return asset;
+        }
+
+        protected abstract void InitVerify(string resPath, object data);
+
+        protected abstract object CopyData();
 
         protected abstract void OnUnload();
 
@@ -110,12 +121,25 @@ namespace MFramework.AssetService
                 return Copy<T>(resPath);
             }
 
+            public static T TryCopy<T>(string resPath) where T : AssetBase, new()
+            {
+                if (AssetCache.ContainsKey(resPath))
+                {
+                    return Copy<T>(resPath);
+                }
+                return null;
+            }
+
             public static T Copy<T>(string resPath) where T : AssetBase,new()
             {
                 if (AssetCache.ContainsKey(resPath))
                 {
                     AssetCache[resPath].referenceCount++;
-                    return AssetCache[resPath].asset.Copy() as T;
+                    return AssetCache[resPath].asset.Copy<T>();
+                }
+                else
+                {
+                    Log.LogE("AssetManager.Copy:严重错误，拷贝源数据不存在,path:{0}", resPath);
                 }
                 return null;
             }
@@ -131,15 +155,18 @@ namespace MFramework.AssetService
                 {
                     throw new Exception("Asset.Unload:严重错误，意外卸载Cache资源");
                 }
-                assetCache.referenceCount--;
-                asset.Unload(false);
-                if (assetCache.referenceCount <= 1)
+                if (asset.Unload(false))
                 {
-                    assetCache.asset.Unload(true);
-                    AssetCache.Remove(asset.ResPath);
-                    if (AssetUnload != null)
+                    assetCache.referenceCount--;
+                    if (assetCache.referenceCount <= 1)
                     {
-                        AssetUnload.Invoke(assetCache.asset);
+                        if (assetCache.asset.Unload(true) && AssetCache.Remove(asset.ResPath))
+                        {
+                            if (AssetUnload != null)
+                            {
+                                AssetUnload.Invoke(assetCache.asset);
+                            }
+                        }
                     }
                 }
             }

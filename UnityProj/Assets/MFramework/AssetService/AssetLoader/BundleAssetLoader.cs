@@ -58,7 +58,7 @@ namespace MFramework.AssetService
 
         public override AssetBase LoadAsset(string path)
         {
-            UnityAsset unityAsset = AssetBase.AssetManager.Copy<UnityAsset>(path);
+            UnityAsset unityAsset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
             if (unityAsset != null) return unityAsset;
             string bundleName = BuildConfig.GetBundleName(path);
             List<string> allBundleName = GetAllDependencyBundleName(path);
@@ -84,7 +84,7 @@ namespace MFramework.AssetService
 
         public override AssetRequest LoadAssetAsync(string path)
         {
-            UnityAsset unityAsset = AssetBase.AssetManager.Copy<UnityAsset>(path);
+            UnityAsset unityAsset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
             if (unityAsset != null)
             {
                 return new BundleAssetRequest(path, unityAsset);
@@ -180,11 +180,8 @@ namespace MFramework.AssetService
 
         private BundleAsset LoadBundleAsset(string bundleName)
         {
-            BundleAsset bundleAsset = AssetBase.AssetManager.Copy<BundleAsset>(bundleName);
-            if (bundleAsset != null)
-            {
-                return bundleAsset;
-            }
+            BundleAsset bundleAsset = AssetBase.AssetManager.TryCopy<BundleAsset>(bundleName);
+            if (bundleAsset != null) return bundleAsset;
             var bundleFullPath = GetBundleFullPath(bundleName);
             if (File.Exists(bundleFullPath))
             {
@@ -216,11 +213,8 @@ namespace MFramework.AssetService
 
         private BundleCreateAssetRequest LoadBundleAssetSync(string bundleName)
         {
-            BundleAsset bundleAsset = AssetBase.AssetManager.Copy<BundleAsset>(bundleName);
-            if (bundleAsset != null)
-            {
-                return new BundleCreateAssetRequest(bundleName, bundleAsset);
-            }
+            BundleAsset bundleAsset = AssetBase.AssetManager.TryCopy<BundleAsset>(bundleName);
+            if (bundleAsset != null) return new BundleCreateAssetRequest(bundleName, bundleAsset);
             if (BundleSyncQueue.ContainsKey(bundleName))
             {
                 Log.LogD("BundleAssetLoader.LoadBundleAssetSync:加载队列中已存在，直接返回");

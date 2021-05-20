@@ -11,22 +11,16 @@ namespace MFramework.AssetService
 
         public override AssetBase LoadAsset(string path)
         {
-            UnityAsset asset = AssetBase.AssetManager.Copy<UnityAsset>(path);
-            if (asset == null)
-            {
-                UnityEngine.Object data = Resources.Load(FormatResourcesPath(path));
-                asset = AssetBase.AssetManager.Create<UnityAsset>(path, data);
-            }
-            return asset;
+            AssetBase asset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
+            if (asset != null) return asset;
+            UnityEngine.Object data = Resources.Load(FormatResourcesPath(path));
+            return AssetBase.AssetManager.Create<UnityAsset>(path, data);
         }
 
         public override AssetRequest LoadAssetAsync(string path)
         {
-            UnityAsset asset = AssetBase.AssetManager.Copy<UnityAsset>(path);
-            if (asset != null)
-            {
-                return new LocalAssetRequest(path,asset);
-            }
+            UnityAsset asset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
+            if (asset != null) return new LocalAssetRequest(path, asset);
             if (SyncQueue.ContainsKey(path))
             {
                 Log.LogD("LocalAssetLoader.LoadAssetAsync:加载队列中已存在，直接返回");

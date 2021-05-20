@@ -18,7 +18,7 @@ namespace MFramework.AssetService
             }
             this.assetPath = assetPath;
             Asset = asset;
-            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+            NextTickCompletedInvoke(null);
         }
 
         public LocalAssetRequest(string assetPath,ResourceRequest resourceRequest)
@@ -30,7 +30,7 @@ namespace MFramework.AssetService
             this.assetPath = assetPath;
             ResourceRequest = resourceRequest;
             ResourceRequest.completed += OnCompleted;
-            ResourceRequest.completed += CompletedInvoke;
+            ResourceRequest.completed += NextTickCompletedInvoke;
         }
 
         protected override AssetRequest OnClone()
@@ -61,20 +61,20 @@ namespace MFramework.AssetService
             }
         }
 
-        private void CompletedInvoke(object obj)
+        private void NextTickCompletedInvoke(object obj)
+        {
+            ScheduleService.ScheduleService.GetInstance().AddFrame(1, false, this);
+        }
+
+        public void OnScheduleHandle(ScheduleType type, uint id)
         {
             CompletedInvoke();
+            ScheduleService.ScheduleService.GetInstance().RemoveFrame(id);
         }
 
         protected override float OnProgress()
         {
             return ResourceRequest.progress;
-        }
-
-        public void OnScheduleHandle(ScheduleType type, uint id)
-        {
-            CompletedInvoke(null);
-            ScheduleService.ScheduleService.GetInstance().RemoveFrame(id);
         }
     }
 }

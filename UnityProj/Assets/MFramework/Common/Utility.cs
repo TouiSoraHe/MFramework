@@ -47,6 +47,29 @@ namespace MFramework.Common
         }
 #endif
 
+        public static string GetMD5Hash(string str)
+        {
+            return GetMD5Hash(System.Text.Encoding.UTF8.GetBytes(str));
+        }
+
+        public static string GetMD5HashByPath(string path)
+        {
+            if (File.Exists(path))
+            {
+                string md5 = string.Empty;
+                using (FileStream fs = new FileStream(path, FileMode.Open))
+                {
+                    md5 = GetMD5Hash(fs);
+                }
+                return md5;
+            }
+            else
+            {
+                Log.LogE("Utility.GetMD5HashByPath:文件不存在,path:{0}", path);
+                return string.Empty;
+            }
+        }
+
         public static string GetMD5Hash(byte[] _bytes)
         {
             byte[] hashData = null;
@@ -295,6 +318,39 @@ namespace MFramework.Common
                     {
                         Log.LogE("Delete Directory " + directory + " Error! Exception = " + ex.ToString());
 
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public static bool MoveFile(string path,string destPath, bool overwrite = true)
+        {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            int tryCount = 0;
+
+            while (true)
+            {
+                try
+                {
+                    if (overwrite && File.Exists(destPath))
+                    {
+                        DeleteFile(destPath);
+                    }
+                    System.IO.File.Move(path, destPath);
+                    return true;
+                }
+                catch (System.Exception ex)
+                {
+                    tryCount++;
+
+                    if (tryCount >= 3)
+                    {
+                        Log.LogE("MoveFile {0} To {1} Error! Exception = {2}",path, destPath, ex.ToString());
                         return false;
                     }
                 }

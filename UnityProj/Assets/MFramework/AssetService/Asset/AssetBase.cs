@@ -83,6 +83,14 @@ namespace MFramework.AssetService
 
         protected abstract void OnRealUnload();
 
+        ~AssetBase()
+        {
+            if (!isUnload)
+            {
+                Log.LogE("AssetBase:严重错误，资源未卸载，path:" + ResPath);
+            }
+        }
+
         public class AssetManager
         {
             public static event Action<AssetBase> AssetUnload;

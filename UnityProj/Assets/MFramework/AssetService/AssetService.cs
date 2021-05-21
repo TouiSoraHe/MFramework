@@ -20,7 +20,7 @@ namespace MFramework.AssetService
 #endif
     }
 
-    public AssetBase LoadAsset(string path)
+        public AssetBase LoadAsset(string path)
         {
             return AssetLoader.LoadAsset(path);
         }

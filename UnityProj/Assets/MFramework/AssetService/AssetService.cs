@@ -13,6 +13,7 @@ namespace MFramework.AssetService
         protected override void Awake()
         {
             base.Awake();
+            AssetBase.AssetManager.Init();
 #if !UNITY_EDITOR || USE_BUNDLE
             AssetLoader = new BundleAssetLoader();
 #else

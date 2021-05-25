@@ -1,4 +1,5 @@
 ﻿using MFramework.Common;
+using MFramework.ScheduleService;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,29 +9,32 @@ namespace MFramework.DownloadService
 {
     public class DownloadService : SingletonMB<DownloadService>
     {
-        private Dictionary<string, DownloadResponseAsyncOperation> DownloadQueue = new Dictionary<string, DownloadResponseAsyncOperation>();
+        public static readonly uint MAX_DOWNLOAD_CNT = 1;
+        private Dictionary<string, DownloadAsyncOperation> DownloadList = new Dictionary<string, DownloadAsyncOperation>();
+        private Queue<DownloadAsyncOperation.Inner> waitDownload = new Queue<DownloadAsyncOperation.Inner>();
+        private uint curDownloadingCnt = 0;
 
-        public DownloadResponseAsyncOperation Download(string url)
+        public DownloadAsyncOperation Download(string url)
         {
             return Download(new DownloadRequest(url));
         }
 
-        public DownloadResponseAsyncOperation Download(string url, string saveDir, string saveName)
+        public DownloadAsyncOperation Download(string url, string saveDir, string saveName)
         {
             return Download(new DownloadRequest(url, saveDir, saveName));
         }
 
-        public DownloadResponseAsyncOperation Download(string url, string saveDir, string saveName, string md5)
+        public DownloadAsyncOperation Download(string url, string saveDir, string saveName, string md5)
         {
             return Download(new DownloadRequest(url, saveDir, saveName, md5));
         }
 
-        public DownloadResponseAsyncOperation Download(DownloadRequest downloadRequest)
+        public DownloadAsyncOperation Download(DownloadRequest downloadRequest)
         {
-            if (DownloadQueue.ContainsKey(downloadRequest.FullTempPath))
+            if (DownloadList.ContainsKey(downloadRequest.FullTempPath))
             {
                 Log.LogD("下载文件 {0} 已存在下载队列，直接返回", downloadRequest.Url);
-                return DownloadQueue[downloadRequest.FullTempPath];
+                return DownloadList[downloadRequest.FullTempPath];
             }
             UnityWebRequest unityWebRequest = new UnityWebRequest();
             unityWebRequest.method = DownloadRequest.HttpMethodsToString(downloadRequest.HttpMethod);
@@ -50,12 +54,31 @@ namespace MFramework.DownloadService
                 //下载到内存
                 unityWebRequest.downloadHandler = new DownloadHandlerBuffer();
             }
-            DownloadResponseAsyncOperation downloadResponseAsyncOperation = new DownloadResponseAsyncOperation(unityWebRequest.SendWebRequest(), downloadRequest);
-            DownloadQueue.Add(downloadRequest.FullTempPath, downloadResponseAsyncOperation);
-            downloadResponseAsyncOperation.Completed += (o) => {
-                DownloadQueue.Remove(downloadRequest.FullTempPath);
-            };
-            return downloadResponseAsyncOperation;
+            DownloadAsyncOperation.Inner downloadAsyncOperationInner= new DownloadAsyncOperation.Inner(unityWebRequest, downloadRequest);
+            DownloadList.Add(downloadRequest.FullTempPath, downloadAsyncOperationInner.DownloadAsyncOperation);
+            if (curDownloadingCnt >= MAX_DOWNLOAD_CNT)
+            {
+                waitDownload.Enqueue(downloadAsyncOperationInner);
+            }
+            else
+            {
+                curDownloadingCnt++;
+                downloadAsyncOperationInner.Send();
+            }
+            downloadAsyncOperationInner.Completed += DownloadAsyncOperationInner_Completed;
+            return downloadAsyncOperationInner.DownloadAsyncOperation;
+        }
+
+        private void DownloadAsyncOperationInner_Completed(CustomAsyncOperation obj)
+        {
+            DownloadAsyncOperation.Inner downloadAsyncOperationInner = obj as DownloadAsyncOperation.Inner;
+            DownloadList.Remove(downloadAsyncOperationInner.DownloadRequest.FullTempPath);
+            curDownloadingCnt--;
+            if (curDownloadingCnt < MAX_DOWNLOAD_CNT && waitDownload.Count > 0)
+            {
+                curDownloadingCnt++;
+                waitDownload.Dequeue().Send();
+            }
         }
     }
 }

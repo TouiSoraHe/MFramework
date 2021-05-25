@@ -94,7 +94,7 @@ namespace MFramework.AssetService
         public class AssetManager
         {
             public static event Action<AssetBase> AssetUnload;
-            private static Dictionary<string, CacheInfo> AssetCache = new Dictionary<string, CacheInfo>();
+            private static Dictionary<string, CacheInfo> AssetCache;
             private class CacheInfo
             {
                 public AssetBase asset;
@@ -104,6 +104,11 @@ namespace MFramework.AssetService
                 {
                     this.asset = asset;
                 }
+            }
+
+            public static void Init()
+            {
+                AssetCache = new Dictionary<string, CacheInfo>();
             }
 
             public static T Create<T>(string resPath, object data) where T : AssetBase,new()

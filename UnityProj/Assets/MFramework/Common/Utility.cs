@@ -357,6 +357,40 @@ namespace MFramework.Common
             }
         }
 
+        //----------------------------------------------
+        /// 创建目录
+        /// @directory
+        //----------------------------------------------
+        public static bool CreateDirectory(string directory)
+        {
+            if (Directory.Exists(directory))
+            {
+                return true;
+            }
+
+            int tryCount = 0;
+
+            while (true)
+            {
+                try
+                {
+                    System.IO.Directory.CreateDirectory(directory);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    tryCount++;
+
+                    if (tryCount >= 3)
+                    {
+                        Log.LogE("Create Directory " + directory + " Error! Exception = " + ex.ToString());
+
+                        return false;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 获取系统剪切板内容
         /// </summary>

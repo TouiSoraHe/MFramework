@@ -9,30 +9,35 @@ using UnityEditor;
 
 namespace MFramework.Common
 {
-    public class ConfigBase<T> : ScriptableObject where T : ConfigBase<T>
+    public abstract class ConfigBase<T> : ScriptableObject where T : ConfigBase<T>
     {
-        public static T LoadAssetAtPath(string path)
+        public static T LoadConfig()
         {
-#if UNITY_EDITOR
-            var asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            string path = GetConfigPath();
+            var asset = Resources.Load<T>(path);
             if (asset == null)
             {
                 asset = CreateInstance<T>();
-                AssetDatabase.CreateAsset(asset, path);
+#if UNITY_EDITOR
+                Utility.CreateDirectory(System.IO.Path.GetDirectoryName(Utility.CombinePaths(Application.dataPath, "Resources", GetConfigPath())));
+                AssetDatabase.CreateAsset(asset, Utility.CombinePaths("Assets/Resources", GetConfigPath(), ".asset"));
+#endif
             }
             return asset;
-#else
-        return null;
-#endif
         }
 
         [Conditional("UNITY_EDITOR")]
-        protected void SaveAsset()
+        protected void SaveConfig()
         {
 #if UNITY_EDITOR
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
 #endif
+        }
+
+        private static string GetConfigPath()
+        {
+            return "A_Config_MFramework/" + typeof(T).Name;
         }
     }
 }

@@ -10,9 +10,9 @@ namespace MFramework.AssetService
     public class BundleAssetLoader : AssetLoader
     {
 #if !UNITY_EDITOR || !LOCAL_BUNDLE
-        public static readonly string bundleBasePath = Application.persistentDataPath + "/Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
+        public static readonly string BundleBasePath = Application.persistentDataPath + "/Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
 #else
-        public static readonly string bundleBasePath = Application.dataPath + "/../../Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
+        public static readonly string BundleBasePath = Application.dataPath + "/../../Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
 #endif
 
         private BuildInfo buildInfo;
@@ -25,7 +25,7 @@ namespace MFramework.AssetService
         public BundleAssetLoader()
         {
             AssetBase.AssetManager.AssetUnload += AssetManagerAssetUnload;
-            string buildInfoPath = Utility.CombinePaths(bundleBasePath, BuildInfo.BuildInfoName);
+            string buildInfoPath = Utility.CombinePaths(BundleBasePath, BuildInfo.BuildInfoName);
             if (File.Exists(buildInfoPath))
             {
                 buildInfo = JsonUtility.FromJson<BuildInfo>(System.Text.Encoding.UTF8.GetString(Utility.ReadFile(buildInfoPath)));
@@ -146,7 +146,7 @@ namespace MFramework.AssetService
 
         private static string GetBundleFullPath(string bundleName)
         {
-            return Utility.CombinePaths(bundleBasePath, bundleName + "." + BundleInfo.BundleExt);
+            return Utility.CombinePaths(BundleBasePath, bundleName + "." + BundleInfo.BundleExt);
         }
 
         private List<string> GetAllDependencyBundleName(string path)

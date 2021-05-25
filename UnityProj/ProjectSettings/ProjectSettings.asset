@@ -550,7 +550,7 @@ PlayerSettings:
   webGLUseWasm: 0
   webGLCompressionFormat: 1
   scriptingDefineSymbols:
-    1: LOCAL_BUNDLE;USE_BUNDLE
+    1: USE_BUNDLE
   platformArchitecture: {}
   scriptingBackend: {}
   incrementalIl2cppBuild: {}

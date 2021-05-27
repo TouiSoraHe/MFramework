@@ -13,7 +13,15 @@ namespace MFramework.AssetService
         {
             AssetBase asset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
             if (asset != null) return asset;
-            UnityEngine.Object data = Resources.Load(FormatResourcesPath(path));
+            UnityEngine.Object data = null;
+#if UNITY_EDITOR
+            data = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
+#endif
+            if (data == null)
+            {
+                Log.LogE("资源加载失败,path:{0}", path);
+                return null;
+            }
             return AssetBase.AssetManager.Create<UnityAsset>(path, data);
         }
 
@@ -26,22 +34,12 @@ namespace MFramework.AssetService
                 Log.LogD("LocalAssetLoader.LoadAssetAsync:加载队列中已存在，直接返回");
                 return SyncQueue[path].Clone();
             }
-            LocalAssetRequest assetRequest = new LocalAssetRequest(path, Resources.LoadAsync(FormatResourcesPath(path)));
+            LocalAssetRequest assetRequest = new LocalAssetRequest(path, LoadAsset(path) as UnityAsset);
             SyncQueue.Add(path, assetRequest);
             assetRequest.Completed += (o) => {
                 SyncQueue.Remove(path);
             };
             return assetRequest;
-        }
-
-        private string FormatResourcesPath(string path)
-        {
-            path = Utility.GetFilePathWithoutExtension(path);
-            if (path.StartsWith("Assets/Resources/"))
-            {
-                path = path.Substring(17);
-            }
-            return path;
         }
     }
 }

@@ -9,7 +9,7 @@ namespace MFramework.DownloadService
 {
     public class DownloadService : SingletonMB<DownloadService>
     {
-        public static readonly uint MAX_DOWNLOAD_CNT = 1;
+        public static readonly uint MAX_DOWNLOAD_CNT = 20;
         private Dictionary<string, DownloadAsyncOperation> DownloadList = new Dictionary<string, DownloadAsyncOperation>();
         private Queue<DownloadAsyncOperation.Inner> waitDownload = new Queue<DownloadAsyncOperation.Inner>();
         private uint curDownloadingCnt = 0;

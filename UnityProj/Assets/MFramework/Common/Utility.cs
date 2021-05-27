@@ -4,6 +4,7 @@ using UnityEngine;
 using System.IO;
 using System;
 using System.Diagnostics;
+using Sirenix.Serialization;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -330,6 +331,11 @@ namespace MFramework.Common
             {
                 return false;
             }
+            var dirPath = Path.GetDirectoryName(destPath);
+            if (!Directory.Exists(dirPath) && !CreateDirectory(dirPath))
+            {
+                return false;
+            }
 
             int tryCount = 0;
 
@@ -414,6 +420,16 @@ namespace MFramework.Common
             string parentPath = Path.GetDirectoryName(v);
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(v);
             return CombinePaths(parentPath, fileNameWithoutExtension);
+        }
+
+        public static byte[] Serialize(object o)
+        {
+            return SerializationUtility.SerializeValue(o, DataFormat.JSON);
+        }
+
+        public static T DeSerialize<T>(byte[] data)
+        {
+            return SerializationUtility.DeserializeValue<T>(data, DataFormat.JSON);
         }
     }
 }

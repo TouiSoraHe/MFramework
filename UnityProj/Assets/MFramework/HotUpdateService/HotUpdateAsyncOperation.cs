@@ -6,6 +6,8 @@ using UnityEngine;
 using MFramework.DownloadService;
 using System.Text;
 using System.IO;
+using MFramework.Config;
+using MFramework.Build;
 
 namespace MFramework.HotUpdateService
 {
@@ -17,11 +19,11 @@ namespace MFramework.HotUpdateService
         private string buildInfoUrl;
         private float downloadSpeed = 0.0f;
         private string error;
-        private Dictionary<DownloadAsyncOperation, BundleInfo> bundleDownloadInfo;
-        private Dictionary<BundleInfo, string> needUpdateInfo;
-        private uint bundleDownloadCompleteCnt;
+        private Dictionary<DownloadAsyncOperation, BuildConfig.FileInfo> fileDownloadInfo;
+        private Dictionary<BuildConfig.FileInfo, string> needUpdateFile;
+        private uint fileDownloadCompleteCnt;
         private string localBuildInfoPath;
-        private BuildInfo remoteBuildInfo;
+        private BuildConfig.BuildInfo remoteBuildInfo;
 
         public float DownloadSpeed
         {
@@ -51,10 +53,10 @@ namespace MFramework.HotUpdateService
 
         public HotUpdateAsyncOperation()
         {
-            hotUpdateConfig = HotUpdateConfig.LoadConfig();
-            resBaseUrl = Utility.CombinePaths(hotUpdateConfig.UpdateUrl, BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform()));
-            buildInfoUrl = Utility.CombinePaths(resBaseUrl, BuildInfo.BuildInfoName);
-            localBuildInfoPath = Utility.CombinePaths(BundleAssetLoader.BundleBasePath, BuildInfo.BuildInfoName);
+            hotUpdateConfig = HotUpdateConfig.LoadConfig<HotUpdateConfig>();
+            resBaseUrl = Utility.CombinePaths(hotUpdateConfig.UpdateUrl, Platform.GetCurBuildPlatformName());
+            buildInfoUrl = Utility.CombinePaths(resBaseUrl, BuildConfig.BuildInfo.BuildInfoFileName);
+            localBuildInfoPath = Utility.CombinePaths(PathMgr.Runtime_BuildFullPath, BuildConfig.BuildInfo.BuildInfoFileName);
 
             HotUpdateService.GetInstance().StartCoroutine(Start());
         }
@@ -84,50 +86,52 @@ namespace MFramework.HotUpdateService
                 Complete();
                 yield break;
             }
-            remoteBuildInfo = JsonUtility.FromJson<BuildInfo>(Encoding.UTF8.GetString(downloadResponseAsyncOperation.DownloadResponse.Data));
-            BuildInfo localBuildInfo = null;
+            remoteBuildInfo = Utility.DeSerialize<BuildConfig.BuildInfo>(downloadResponseAsyncOperation.DownloadResponse.Data);
+            BuildConfig.BuildInfo localBuildInfo = null;
             if (File.Exists(localBuildInfoPath))
             {
                 var localdata = Utility.ReadFile(localBuildInfoPath);
                 if (localdata != null)
                 {
-                    localBuildInfo = JsonUtility.FromJson<BuildInfo>(Encoding.UTF8.GetString(localdata));
+                    localBuildInfo = Utility.DeSerialize<BuildConfig.BuildInfo>(localdata);
                 }
             }
             //这里将下载的bundle的MD5置空并备份，下载成功后又设置回来
-            needUpdateInfo = CompareBuildInfo(remoteBuildInfo, localBuildInfo);
-            if (needUpdateInfo == null)
+            needUpdateFile = CompareBuildInfo(remoteBuildInfo, localBuildInfo);
+            if (needUpdateFile == null)
             {
                 Log.LogD("无需更新");
                 Complete();
                 yield break;
             }
             // 下载资源包
-            bundleDownloadInfo = new Dictionary<DownloadAsyncOperation, BundleInfo>();
+            fileDownloadInfo = new Dictionary<DownloadAsyncOperation, BuildConfig.FileInfo>();
             var remoteVersionBck = remoteBuildInfo.Version;
             remoteBuildInfo.Version--;
-            foreach (var info in needUpdateInfo)
+            foreach (var info in needUpdateFile)
             {
-                var bundleInfo = info.Key;
-                var fileName = bundleInfo.BundleName + "." + BundleInfo.BundleExt;
-                var url = Utility.CombinePaths(resBaseUrl, fileName);
+                var fileInfo = info.Key;
+                var filePath = Utility.CombinePaths(PathMgr.Runtime_BuildFullPath, fileInfo.RelativePath);
+                var fileDir = Path.GetDirectoryName(filePath);
+                var fileName = Path.GetFileName(filePath);
+                var url = Utility.CombinePaths(resBaseUrl, fileInfo.RelativePath);
                 DownloadAsyncOperation downloadAsyncOperation = DownloadService.DownloadService.GetInstance()
-                    .Download(url, BundleAssetLoader.BundleBasePath, fileName, bundleInfo.MD5);
-                bundleDownloadInfo.Add(downloadAsyncOperation, bundleInfo);
+                    .Download(url, fileDir, fileName, fileInfo.MD5);
+                fileDownloadInfo.Add(downloadAsyncOperation, fileInfo);
                 downloadAsyncOperation.Completed += BundleCompleted;
             }
             while (true)
             {
                 progress = 0.0f;
                 DownloadSpeed = 0.0f;
-                foreach (var item in bundleDownloadInfo)
+                foreach (var item in fileDownloadInfo)
                 {
                     var responseAsyncOperation = item.Key;
                     progress += responseAsyncOperation.Progress;
                     DownloadSpeed += responseAsyncOperation.DownloadSpeed;
                 }
-                progress /= bundleDownloadInfo.Count;
-                if (bundleDownloadCompleteCnt == bundleDownloadInfo.Count)
+                progress /= fileDownloadInfo.Count;
+                if (fileDownloadCompleteCnt == fileDownloadInfo.Count)
                 {
                     break;
                 }
@@ -137,7 +141,7 @@ namespace MFramework.HotUpdateService
             {
                 remoteBuildInfo.Version = remoteVersionBck;
             }
-            Utility.WriteFile(localBuildInfoPath, JsonUtility.ToJson(remoteBuildInfo));
+            Utility.WriteFile(localBuildInfoPath, Utility.Serialize(remoteBuildInfo));
             Complete();
         }
 
@@ -154,34 +158,30 @@ namespace MFramework.HotUpdateService
 #endif
         }
 
-        private Dictionary<BundleInfo,string> CompareBuildInfo(BuildInfo remote, BuildInfo local)
+        private Dictionary<BuildConfig.FileInfo, string> CompareBuildInfo(BuildConfig.BuildInfo remote, BuildConfig.BuildInfo local)
         {
             if (local == null)
             {
-                local = new BuildInfo();
+                local = new BuildConfig.BuildInfo(remote.Version - 1);
             }
             if (remote.Version.Equals(local.Version))
             {
                 return null;
             }
-            var localBundleNameToInfo = new Dictionary<string, BundleInfo>();
-            foreach (var item in local.BundleInfos)
+            Dictionary<BuildConfig.FileInfo, string> needUpdate = new Dictionary<BuildConfig.FileInfo, string>();
+            foreach (var item in remote.FileInfos)
             {
-                localBundleNameToInfo.Add(item.BundleName, item);
-            }
-            Dictionary<BundleInfo, string> needUpdate = new Dictionary<BundleInfo, string>();
-            foreach (var remoteBundleInfo in remote.BundleInfos)
-            {
-                if (!localBundleNameToInfo.ContainsKey(remoteBundleInfo.BundleName))
+                var remoteFileInfo = item.Value;
+                if (!local.FileInfos.ContainsKey(remoteFileInfo.RelativePath))
                 {
-                    needUpdate.Add(remoteBundleInfo, remoteBundleInfo.MD5);
-                    remoteBundleInfo.MD5 = string.Empty;
+                    needUpdate.Add(remoteFileInfo, remoteFileInfo.MD5);
+                    remoteFileInfo.MD5 = string.Empty;
                     continue;
                 }
-                if (!remoteBundleInfo.MD5.Equals(localBundleNameToInfo[remoteBundleInfo.BundleName].MD5))
+                if (!remoteFileInfo.MD5.Equals(local.FileInfos[remoteFileInfo.RelativePath].MD5))
                 {
-                    needUpdate.Add(remoteBundleInfo, remoteBundleInfo.MD5);
-                    remoteBundleInfo.MD5 = string.Empty;
+                    needUpdate.Add(remoteFileInfo, remoteFileInfo.MD5);
+                    remoteFileInfo.MD5 = string.Empty;
                 }
             }
             return needUpdate;
@@ -201,12 +201,12 @@ namespace MFramework.HotUpdateService
             }
             else
             {
-                bundleDownloadInfo[downloadAsyncOperation].MD5 = needUpdateInfo[bundleDownloadInfo[downloadAsyncOperation]];
+                fileDownloadInfo[downloadAsyncOperation].MD5 = needUpdateFile[fileDownloadInfo[downloadAsyncOperation]];
             }
-            bundleDownloadCompleteCnt++;
-            if (bundleDownloadCompleteCnt % 10 == 0)
+            fileDownloadCompleteCnt++;
+            if (fileDownloadCompleteCnt % 10 == 0)
             {
-                Utility.WriteFile(localBuildInfoPath, JsonUtility.ToJson(remoteBuildInfo));
+                Utility.WriteFile(localBuildInfoPath, Utility.Serialize(remoteBuildInfo));
             }
         }
 

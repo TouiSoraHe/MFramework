@@ -1,0 +1,5 @@
+{
+    "$id": 0,
+    "$type": "0|MFramework.Config.HotUpdateConfig, Assembly-CSharp",
+    "updateUrl": "http://homeipv4.zhangzhanyi.com:38080/mf/Build"
+}

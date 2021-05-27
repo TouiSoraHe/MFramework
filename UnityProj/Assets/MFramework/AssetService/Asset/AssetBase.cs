@@ -8,10 +8,16 @@ namespace MFramework.AssetService
 {
 	public abstract class AssetBase
     {
+        #region private variable
         private string resPath;
 		private object data;
         private bool isUnload = false;
+        #endregion
 
+        #region property
+        /// <summary>
+        /// 资源路径
+        /// </summary>
         public string ResPath
         {
             get
@@ -24,6 +30,9 @@ namespace MFramework.AssetService
             }
         }
 
+        /// <summary>
+        /// 包裹的资源数据
+        /// </summary>
         public object Data
         {
             get
@@ -35,19 +44,60 @@ namespace MFramework.AssetService
                 data = value;
             }
         }
+        #endregion
 
-        public AssetBase(){ }
-        private void Init(string resPath, object data)
-        {
-            this.ResPath = resPath;
-            Data = data;
-        }
-
+        #region public function
+        /// <summary>
+        /// 卸载资源
+        /// </summary>
         public void Unload()
         {
             AssetManager.Unload(this);
         }
+        #endregion
 
+        #region protected function
+        /// <summary>
+        /// 子类校验初始化参数
+        /// </summary>
+        /// <param name="resPath">资源路径</param>
+        /// <param name="data">包裹的资源数据</param>
+        protected abstract void InitVerify(string resPath, object data);
+
+        /// <summary>
+        /// 拷贝 Data 时被调用
+        /// </summary>
+        /// <returns>拷贝出来的 Data</returns>
+        protected abstract object CopyData();
+
+        /// <summary>
+        /// 卸载资源时被调用，供子类清理Data
+        /// </summary>
+        protected abstract void OnUnload();
+
+        /// <summary>
+        /// 所有拷贝资源都被卸载，最原始的资源卸载时被调用
+        /// </summary>
+        protected abstract void OnRealUnload();
+        #endregion
+
+        #region private function
+        /// <summary>
+        /// 初始化方法
+        /// </summary>
+        /// <param name="resPath">资源路径</param>
+        /// <param name="data">资源数据</param>
+        private void Init(string resPath, object data)
+        {
+            ResPath = resPath;
+            Data = data;
+        }
+
+        /// <summary>
+        /// 真正的卸载方法
+        /// </summary>
+        /// <param name="isReal">是否为原始资源</param>
+        /// <returns>是否卸载成功</returns>
         private bool Unload(bool isReal)
         {
             if (isUnload)
@@ -67,6 +117,11 @@ namespace MFramework.AssetService
             return true;
         }
 
+        /// <summary>
+        /// 用于拷贝一份资源
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         private T Copy<T>() where T : AssetBase, new()
         {
             object obj = CopyData();
@@ -75,14 +130,9 @@ namespace MFramework.AssetService
             return asset;
         }
 
-        protected abstract void InitVerify(string resPath, object data);
-
-        protected abstract object CopyData();
-
-        protected abstract void OnUnload();
-
-        protected abstract void OnRealUnload();
-
+        /// <summary>
+        /// 仅作提示，在编辑器模式下，没有卸载资源直接停止运行，该方法可能会被调用
+        /// </summary>
         ~AssetBase()
         {
             if (!isUnload)
@@ -90,11 +140,22 @@ namespace MFramework.AssetService
                 Log.LogE("AssetBase:严重错误，资源未卸载，path:" + ResPath);
             }
         }
+        #endregion
 
+        #region inner class
         public class AssetManager
         {
+            #region private variable
+            /// <summary>
+            /// 资源卸载事件，当资源被彻底卸载时触发
+            /// </summary>
             public static event Action<AssetBase> AssetUnload;
+            /// <summary>
+            /// 缓存信息，引用计数信息
+            /// </summary>
             private static Dictionary<string, CacheInfo> AssetCache;
+            #endregion
+
             private class CacheInfo
             {
                 public AssetBase asset;
@@ -106,12 +167,22 @@ namespace MFramework.AssetService
                 }
             }
 
+            /// <summary>
+            /// Eidtor中静态变量不会被清理，所以每次运行时初始化一下
+            /// </summary>
             public static void Init()
             {
                 AssetCache = new Dictionary<string, CacheInfo>();
             }
 
-            public static T Create<T>(string resPath, object data) where T : AssetBase,new()
+            /// <summary>
+            /// 创建一个 AssetBase 
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="resPath"></param>
+            /// <param name="data"></param>
+            /// <returns></returns>
+            public static T Create<T>(string resPath, object data) where T : AssetBase, new()
             {
                 if (string.IsNullOrEmpty(resPath))
                 {
@@ -134,6 +205,12 @@ namespace MFramework.AssetService
                 return Copy<T>(resPath);
             }
 
+            /// <summary>
+            /// 根据路径 尝试获取一份AssetBase的拷贝
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="resPath"></param>
+            /// <returns></returns>
             public static T TryCopy<T>(string resPath) where T : AssetBase, new()
             {
                 if (AssetCache.ContainsKey(resPath))
@@ -143,7 +220,13 @@ namespace MFramework.AssetService
                 return null;
             }
 
-            public static T Copy<T>(string resPath) where T : AssetBase,new()
+            /// <summary>
+            /// 根据路径 获取一份AssetBase的拷贝
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="resPath"></param>
+            /// <returns></returns>
+            public static T Copy<T>(string resPath) where T : AssetBase, new()
             {
                 if (AssetCache.ContainsKey(resPath))
                 {
@@ -157,6 +240,10 @@ namespace MFramework.AssetService
                 return null;
             }
 
+            /// <summary>
+            /// 卸载一个AssetBase
+            /// </summary>
+            /// <param name="asset"></param>
             public static void Unload(AssetBase asset)
             {
                 if (!AssetCache.ContainsKey(asset.ResPath))
@@ -184,5 +271,6 @@ namespace MFramework.AssetService
                 }
             }
         }
+        #endregion
     }
 }

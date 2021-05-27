@@ -4,20 +4,20 @@ using UnityEngine;
 using MFramework.Common;
 using System.IO;
 using System;
+using MFramework.Config;
+using MFramework.Build;
 
 namespace MFramework.AssetService
 {
     public class BundleAssetLoader : AssetLoader
     {
 #if !UNITY_EDITOR || !LOCAL_BUNDLE
-        public static readonly string BundleBasePath = Application.persistentDataPath + "/Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
+        private static readonly string BundleBasePath = PathMgr.Runtime_Bundle_Path;
 #else
-        public static readonly string BundleBasePath = Application.dataPath + "/../../Build/" + BuildConfig.GetBuildPlatformName(BuildConfig.GetCurrentPlatform());
+        private static readonly string BundleBasePath = PathMgr.Editor_Bundle_Path;
 #endif
 
-        private BuildInfo buildInfo;
-        private Dictionary<string, BundleInfo> nameToBundleInfo = new Dictionary<string, BundleInfo>();
-        private Dictionary<string, ResInfo> pathToResInfo = new Dictionary<string, ResInfo>();
+        private BundleBuilder.BuildInfo buildInfo;
         private Dictionary<string, List<BundleAsset>> pathToBundleAsset = new Dictionary<string, List<BundleAsset>>();
         private Dictionary<string, BundleCreateAssetRequest> BundleSyncQueue = new Dictionary<string, BundleCreateAssetRequest>();
         private Dictionary<string, BundleAssetRequest> AssetSyncQueue = new Dictionary<string, BundleAssetRequest>();
@@ -25,18 +25,10 @@ namespace MFramework.AssetService
         public BundleAssetLoader()
         {
             AssetBase.AssetManager.AssetUnload += AssetManagerAssetUnload;
-            string buildInfoPath = Utility.CombinePaths(BundleBasePath, BuildInfo.BuildInfoName);
+            string buildInfoPath = Utility.CombinePaths(BundleBasePath, BundleBuilder.BuildInfo.BuildInfoName);
             if (File.Exists(buildInfoPath))
             {
-                buildInfo = JsonUtility.FromJson<BuildInfo>(System.Text.Encoding.UTF8.GetString(Utility.ReadFile(buildInfoPath)));
-                foreach (var bundleInfo in buildInfo.BundleInfos)
-                {
-                    nameToBundleInfo.Add(bundleInfo.BundleName, bundleInfo);
-                    foreach (var resInfo in bundleInfo.ResInfos)
-                    {
-                        pathToResInfo.Add(resInfo.Path, resInfo);
-                    }
-                }
+                buildInfo = Utility.DeSerialize<BundleBuilder.BuildInfo>(Utility.ReadFile(buildInfoPath));
             }
             else
             {
@@ -60,7 +52,7 @@ namespace MFramework.AssetService
         {
             UnityAsset unityAsset = AssetBase.AssetManager.TryCopy<UnityAsset>(path);
             if (unityAsset != null) return unityAsset;
-            string bundleName = BuildConfig.GetBundleName(path);
+            string bundleName = BundleBuilder.GetBundleName(path);
             List<string> allBundleName = GetAllDependencyBundleName(path);
             BundleAsset mainBundleAsset = LoadBundleAsset(bundleName);
             List<BundleAsset> bundleAssets = LoadAllBundleAsset(allBundleName);
@@ -94,7 +86,7 @@ namespace MFramework.AssetService
                 Log.LogD("BundleAssetLoader.LoadAssetAsync:加载队列中已存在，直接返回");
                 return AssetSyncQueue[path].Clone();
             }
-            string mainBundleName = BuildConfig.GetBundleName(path);
+            string mainBundleName = BundleBuilder.GetBundleName(path);
             List<string> allBundleName = GetAllDependencyBundleName(path);
             BundleCreateAssetRequest mainBundleCreateAssetRequest = LoadBundleAssetSync(mainBundleName);
             List<BundleCreateAssetRequest> bundleCreateAssetRequests = LoadAllBundleAssetSync(allBundleName);
@@ -102,7 +94,7 @@ namespace MFramework.AssetService
             {
                 List<BundleAsset> bundleAssets = new List<BundleAsset>();
                 int loadingCount = 1 + bundleCreateAssetRequests.Count;
-                Action<CustomAsyncOperation> complete = (obj) => 
+                Action<CustomAsyncOperation> complete = (obj) =>
                 {
                     loadingCount--;
                     BundleCreateAssetRequest bundleCreateAsset = obj as BundleCreateAssetRequest;
@@ -122,7 +114,8 @@ namespace MFramework.AssetService
                 }
                 BundleAssetRequest bundleAssetRequest = new BundleAssetRequest(path, mainBundleCreateAssetRequest, bundleCreateAssetRequests);
                 AssetSyncQueue.Add(path, bundleAssetRequest);
-                bundleAssetRequest.Completed += (o) => {
+                bundleAssetRequest.Completed += (o) =>
+                {
                     AssetSyncQueue.Remove(path);
                 };
                 return bundleAssetRequest;
@@ -146,14 +139,14 @@ namespace MFramework.AssetService
 
         private static string GetBundleFullPath(string bundleName)
         {
-            return Utility.CombinePaths(BundleBasePath, bundleName + "." + BundleInfo.BundleExt);
+            return Utility.CombinePaths(BundleBasePath, bundleName + "." + BundleBuilder.BundleInfo.BundleExt);
         }
 
         private List<string> GetAllDependencyBundleName(string path)
         {
             List<string> bundlePaths = new List<string>();
-            ResInfo resInfo;
-            if (pathToResInfo.TryGetValue(path, out resInfo))
+            BundleBuilder.ResInfo resInfo;
+            if (buildInfo.ResInfos.TryGetValue(path, out resInfo))
             {
                 bundlePaths.AddRange(resInfo.DependencyBundleName);
             }
@@ -226,7 +219,8 @@ namespace MFramework.AssetService
                 AssetBundleCreateRequest assetBundleCreateRequest = AssetBundle.LoadFromFileAsync(bundleFullPath);
                 BundleCreateAssetRequest bundleCreateAssetRequest = new BundleCreateAssetRequest(bundleName, assetBundleCreateRequest);
                 BundleSyncQueue.Add(bundleName, bundleCreateAssetRequest);
-                bundleCreateAssetRequest.Completed += (o) => {
+                bundleCreateAssetRequest.Completed += (o) =>
+                {
                     BundleSyncQueue.Remove(bundleName);
                 };
                 return bundleCreateAssetRequest;

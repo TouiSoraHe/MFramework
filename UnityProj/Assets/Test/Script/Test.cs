@@ -24,46 +24,46 @@ public class Test : MonoBehaviour {
         //      {
         //	Log.LogE((Time.deltaTime - curTime).ToString("f6"));
         //      };
-        //loadBtn.onClick.AddListener(() =>
-        //{
-        //    AssetBase assetBase = AssetService.GetInstance().LoadAsset(loadPathInputField.text);
-        //    if (assetBase != null)
-        //    {
-        //        Add(assetBase);
-        //    }
-        //    else
-        //    {
-        //        Log.LogE("加载失败:{0}", loadPathInputField.text);
-        //    }
-        //});
-        //loadSyncBtn.onClick.AddListener(() =>
-        //{
-        //    AssetRequest assetRequest = AssetService.GetInstance().LoadAssetAsync(loadPathInputField.text);
-        //    if (assetRequest != null)
-        //    {
-        //        assetRequest.Completed += (obj) =>
-        //        {
-        //            Add(assetRequest.Asset);
-        //            assetRequest.Asset.Unload();
-        //        };
-        //    }
-        //    else
-        //    {
-        //        Log.LogE("加载失败:{0}", loadPathInputField.text);
-        //    }
-        //    AssetRequest assetRequest2 = AssetService.GetInstance().LoadAssetAsync(loadPathInputField.text);
-        //    if (assetRequest2 != null)
-        //    {
-        //        assetRequest2.Completed += (obj) =>
-        //        {
-        //            Add(assetRequest2.Asset);
-        //        };
-        //    }
-        //    else
-        //    {
-        //        Log.LogE("加载失败:{0}", loadPathInputField.text);
-        //    }
-        //});
+        loadBtn.onClick.AddListener(() =>
+        {
+            AssetBase assetBase = AssetService.GetInstance().LoadAsset(loadPathInputField.text);
+            if (assetBase != null)
+            {
+                Add(assetBase);
+            }
+            else
+            {
+                Log.LogE("加载失败:{0}", loadPathInputField.text);
+            }
+        });
+        loadSyncBtn.onClick.AddListener(() =>
+        {
+            AssetRequest assetRequest = AssetService.GetInstance().LoadAssetAsync(loadPathInputField.text);
+            if (assetRequest != null)
+            {
+                assetRequest.Completed += (obj) =>
+                {
+                    Add(assetRequest.Asset);
+                    assetRequest.Asset.Unload();
+                };
+            }
+            else
+            {
+                Log.LogE("加载失败:{0}", loadPathInputField.text);
+            }
+            AssetRequest assetRequest2 = AssetService.GetInstance().LoadAssetAsync(loadPathInputField.text);
+            if (assetRequest2 != null)
+            {
+                assetRequest2.Completed += (obj) =>
+                {
+                    Add(assetRequest2.Asset);
+                };
+            }
+            else
+            {
+                Log.LogE("加载失败:{0}", loadPathInputField.text);
+            }
+        });
         //StartCoroutine(start());
     }
 

@@ -1,0 +1,20 @@
+{
+    "$id": 0,
+    "$type": "0|MFramework.Config.BuildConfig, Assembly-CSharp",
+    "BuildVersion": 2,
+    "BaseOutPutPath": "../../Build/Windows",
+    "Platform": 0,
+    "Builders": {
+        "$id": 1,
+        "$type": "1|System.Collections.Generic.List`1[[MFramework.Build.Builder, Assembly-CSharp]], mscorlib",
+        "$rlength": 1,
+        "$rcontent": [
+            {
+                "$id": 2,
+                "$type": "2|MFramework.Build.BundleBuilder, Assembly-CSharp",
+                "isBuild": true,
+                "BuildResPath": "Assets/Res/Runtime"
+            }
+        ]
+    }
+}
